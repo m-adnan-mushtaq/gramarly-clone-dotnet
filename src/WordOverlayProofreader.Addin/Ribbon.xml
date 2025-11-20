@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="Ribbon_Load">
+  <ribbon>
+    <tabs>
+      <tab idMso="TabAddIns">
+        <group id="group1" label="Grammar Checker">
+          <button id="btnScan" label="Scan Document" onAction="btnScan_Click" size="large" imageMso="Spelling" />
+          <toggleButton id="btnAutoScan" label="Auto-Scan" onAction="btnAutoScan_Click" size="normal" imageMso="AutoCorrectOptionsSmartTag" />
+        </group>
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>
