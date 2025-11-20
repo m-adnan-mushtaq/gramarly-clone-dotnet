@@ -13,7 +13,8 @@ namespace WordOverlayProofreader.Overlay
     /// </summary>
     public partial class App : Application
     {
-        public static SuggestionWidget Widget { get; private set; }
+        public static SuggestionsSidebar Sidebar { get; private set; }
+        public static FloatingButton FloatingBtn { get; private set; }
         
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -40,16 +41,30 @@ namespace WordOverlayProofreader.Overlay
                 args.Handled = true;
             };
             
-            // Create and show the suggestion widget
-            Console.WriteLine("[App] Creating SuggestionWidget...");
-            Widget = new SuggestionWidget();
-            Widget.SuggestionAccepted += Widget_SuggestionAccepted;
-            Widget.SuggestionDismissed += Widget_SuggestionDismissed;
-            Widget.Hide(); // Start hidden until we have suggestions
-            Console.WriteLine("[App] SuggestionWidget created");
+            // Create floating button (minimized state)
+            Console.WriteLine("[App] Creating FloatingButton...");
+            FloatingBtn = new FloatingButton();
+            FloatingBtn.ButtonClicked += FloatingBtn_Clicked;
+            FloatingBtn.Hide(); // Start hidden
+            Console.WriteLine("[App] FloatingButton created");
+            
+            // Create the suggestions sidebar (expanded state)
+            Console.WriteLine("[App] Creating SuggestionsSidebar...");
+            Sidebar = new SuggestionsSidebar();
+            Sidebar.SuggestionAccepted += Sidebar_SuggestionAccepted;
+            Sidebar.SuggestionDismissed += Sidebar_SuggestionDismissed;
+            Sidebar.Hide(); // Start hidden until we have suggestions
+            Console.WriteLine("[App] SuggestionsSidebar created");
         }
         
-        private void Widget_SuggestionAccepted(object sender, string suggestionId)
+        private void FloatingBtn_Clicked(object sender, EventArgs e)
+        {
+            Console.WriteLine("[App] Floating button clicked - opening sidebar");
+            FloatingBtn.Hide();
+            Sidebar.Show();
+        }
+        
+        private void Sidebar_SuggestionAccepted(object sender, string suggestionId)
         {
             Console.WriteLine($"[App] ========================================");
             Console.WriteLine($"[App] ACCEPT BUTTON CLICKED!");
@@ -80,7 +95,7 @@ namespace WordOverlayProofreader.Overlay
             });
         }
         
-        private void Widget_SuggestionDismissed(object sender, string suggestionId)
+        private void Sidebar_SuggestionDismissed(object sender, string suggestionId)
         {
             Console.WriteLine($"[App] Suggestion dismissed: {suggestionId}");
             // Optionally send dismissal to Word or just ignore

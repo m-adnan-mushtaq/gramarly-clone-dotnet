@@ -120,16 +120,21 @@ namespace WordOverlayProofreader.Overlay
             }
             Console.WriteLine($"[Overlay] Added {added} squiggles to canvas");
             
-            // Also update the static widget
+            // Update both floating button and sidebar with all suggestions
             if (suggestions.Count > 0)
             {
-                Console.WriteLine($"[Overlay] Updating widget with {suggestions.Count} suggestions");
-                App.Widget?.UpdateSuggestions(suggestions);
+                Console.WriteLine($"[Overlay] Showing floating button with {suggestions.Count} suggestions");
+                App.FloatingBtn?.UpdateCount(suggestions.Count);
+                
+                // Pre-load sidebar with data but keep it hidden
+                App.Sidebar?.UpdateSuggestions(suggestions);
+                App.Sidebar?.Hide();
             }
             else
             {
-                Console.WriteLine("[Overlay] No suggestions, hiding widget");
-                App.Widget?.Hide();
+                Console.WriteLine("[Overlay] No suggestions, hiding all widgets");
+                App.FloatingBtn?.Hide();
+                App.Sidebar?.Hide();
             }
         }
 
