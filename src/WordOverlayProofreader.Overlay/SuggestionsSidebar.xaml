@@ -1,10 +1,8 @@
 <Window x:Class="WordOverlayProofreader.Overlay.SuggestionsSidebar" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Grammar Suggestions" Width="380" WindowStyle="None" AllowsTransparency="True" Background="Transparent" Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize">
 
-  <Border Background="#F5F5F5" BorderBrush="#2196F3" BorderThickness="3,0,0,0" Padding="0">
-    <Border.Effect>
-      <DropShadowEffect BlurRadius="25" ShadowDepth="5" Opacity="0.3" Direction="180" />
-    </Border.Effect>
-
+  <Border Background="#F5F5F5" BorderBrush="#2196F3" BorderThickness="1,0,0,0" Padding="0">
+    <!-- Removed DropShadow for simpler look -->
+    
     <Grid>
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
@@ -12,11 +10,22 @@
       </Grid.RowDefinitions>
 
       <!-- Header -->
-      <Border Grid.Row="0" Background="#2196F3" Padding="15,12">
-        <StackPanel>
-          <TextBlock x:Name="HeaderText" Text="Grammar Suggestions (0)" FontWeight="Bold" FontSize="16" Foreground="White" />
-          <TextBlock Text="Click Accept to fix or Dismiss to ignore" FontSize="11" Foreground="#E3F2FD" Margin="0,3,0,0" />
-        </StackPanel>
+      <Border Grid.Row="0" Background="#2196F3" Padding="10,8">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          
+          <StackPanel Grid.Column="0">
+            <TextBlock x:Name="HeaderText" Text="Suggestions (0)" FontWeight="Bold" FontSize="14" Foreground="White" />
+          </StackPanel>
+          
+          <!-- Minimize Button -->
+          <Button Grid.Column="1" x:Name="MinimizeButton" Click="MinimizeButton_Click" Width="20" Height="20" Background="Transparent" BorderThickness="0" Cursor="Hand" VerticalAlignment="Center" Margin="5,0,0,0">
+            <TextBlock Text="−" FontSize="18" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,-8,0,0"/>
+          </Button>
+        </Grid>
       </Border>
 
       <!-- Scrollable suggestions list -->

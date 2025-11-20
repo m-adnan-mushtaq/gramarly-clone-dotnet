@@ -210,6 +210,10 @@ namespace WordOverlayProofreader.Overlay
                 // Remove from list and rebuild UI
                 _allSuggestions.RemoveAll(s => s.id == suggestionId);
                 UpdateSuggestions(_allSuggestions);
+                
+                // Close sidebar immediately after acceptance as requested
+                this.Hide();
+                Console.WriteLine("[Sidebar] Suggestion accepted, sidebar hidden");
             }
             Console.WriteLine($"[Sidebar] ========================================");
         }
@@ -229,6 +233,12 @@ namespace WordOverlayProofreader.Overlay
                 _allSuggestions.RemoveAll(s => s.id == suggestionId);
                 UpdateSuggestions(_allSuggestions);
             }
+        }
+
+        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            Console.WriteLine("[Sidebar] Minimize button clicked");
+            this.Hide();
         }
 
         private Brush GetBrushForType(string type)

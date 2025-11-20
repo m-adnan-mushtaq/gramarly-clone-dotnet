@@ -1,17 +1,25 @@
-<Window x:Class="WordOverlayProofreader.Overlay.OverlayWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:local="clr-namespace:WordOverlayProofreader.Overlay" mc:Ignorable="d" Title="WordOverlayProofreader" Height="450" Width="800" WindowStyle="None" AllowsTransparency="True" Background="Transparent" Topmost="True" ShowInTaskbar="False" Loaded="Window_Loaded">
+<Window x:Class="WordOverlayProofreader.Overlay.OverlayWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:local="clr-namespace:WordOverlayProofreader.Overlay" mc:Ignorable="d" Title="WordOverlayProofreader" WindowStyle="None" AllowsTransparency="True" Background="Transparent" Topmost="True" ShowInTaskbar="False" Loaded="Window_Loaded" WindowState="Maximized">
   <Grid>
     <Canvas x:Name="OverlayCanvas">
       <!-- Squiggles will be drawn here -->
     </Canvas>
 
     <!-- Popover for suggestions -->
-    <Popup x:Name="SuggestionPopup" Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
+    <Popup x:Name="SuggestionPopup" Placement="Bottom" StaysOpen="True" AllowsTransparency="True">
       <Border Background="White" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="8" Padding="12">
         <Border.Effect>
           <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.3" />
         </Border.Effect>
         <StackPanel MinWidth="200">
-          <TextBlock x:Name="ErrorTypeText" FontWeight="Bold" Margin="0,0,0,8" FontSize="12" Foreground="#333333" />
+          <Grid Margin="0,0,0,8">
+             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+             </Grid.ColumnDefinitions>
+             <TextBlock Grid.Column="0" x:Name="ErrorTypeText" FontWeight="Bold" FontSize="12" Foreground="#333333" VerticalAlignment="Center"/>
+             <Button Grid.Column="1" Content="✕" Click="CloseTooltip_Click" Background="Transparent" BorderThickness="0" Foreground="#999999" Cursor="Hand" Padding="5,0" FontSize="12" FontWeight="Bold" />
+          </Grid>
+          
           <TextBlock x:Name="OriginalTextBlock" Text="Original:" FontSize="11" Foreground="#666666" Margin="0,0,0,2" />
           <TextBlock x:Name="OriginalText" FontSize="12" Margin="0,0,0,10" TextWrapping="Wrap" />
           <Separator Margin="0,0,0,8" />

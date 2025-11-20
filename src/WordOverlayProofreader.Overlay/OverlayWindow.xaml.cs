@@ -83,16 +83,24 @@ namespace WordOverlayProofreader.Overlay
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            // Make window click-through initially or handle hit testing carefully
-            // For this demo, we might want to keep it interactive for the popups
-            // But the canvas area should be transparent to clicks if possible, 
-            // except where we draw squiggles. 
-            // Implementing full click-through with hole-punching is complex, 
-            // so we'll stick to TopMost and assume the user clicks 'Scan' in Word to activate us 
-            // or we poll.
+            Console.WriteLine("[Overlay] Window_Loaded called");
             
-            // In a real app, we'd use SetWindowLong to make it transparent to input 
-            // when no popup is open, and toggle it when a squiggle is hovered/clicked.
+            // Make the window cover the entire screen (all monitors)
+            // This is crucial because coordinates from Word are in screen coordinates
+            this.Left = SystemParameters.VirtualScreenLeft;
+            this.Top = SystemParameters.VirtualScreenTop;
+            this.Width = SystemParameters.VirtualScreenWidth;
+            this.Height = SystemParameters.VirtualScreenHeight;
+            
+            Console.WriteLine($"[Overlay] Window positioned: ({this.Left}, {this.Top}) Size: {this.Width}x{this.Height}");
+            
+            // Make sure canvas matches window size
+            OverlayCanvas.Width = this.Width;
+            OverlayCanvas.Height = this.Height;
+            
+            Console.WriteLine($"[Overlay] Canvas sized: {OverlayCanvas.Width}x{OverlayCanvas.Height}");
+            
+            SetupVisibilityTimer();
         }
 
         // Public method to be called (via IPC/WCF/Pipe) to update suggestions
@@ -106,11 +114,32 @@ namespace WordOverlayProofreader.Overlay
                 return;
             }
             
+            // Get current DPI scale
+            var source = PresentationSource.FromVisual(this);
+            double dpiX = 1.0;
+            double dpiY = 1.0;
+            
+            if (source != null)
+            {
+                dpiX = source.CompositionTarget.TransformToDevice.M11;
+                dpiY = source.CompositionTarget.TransformToDevice.M22;
+                Console.WriteLine($"[Overlay] DPI Scale: {dpiX}x{dpiY}");
+            }
+            
             int added = 0;
             foreach (var s in suggestions)
             {
-                Console.WriteLine($"[Overlay] Adding squiggle at {s.Rect} for '{s.OriginalText}' -> '{s.suggestion}'");
-                var path = SquiggleRenderer.CreateSquiggle(s.Rect, s.type);
+                // Convert screen pixels (from Word) to WPF DIPs
+                var pixelRect = s.Rect;
+                var dipRect = new Rect(
+                    pixelRect.X / dpiX,
+                    pixelRect.Y / dpiY,
+                    pixelRect.Width / dpiX,
+                    pixelRect.Height / dpiY
+                );
+                
+                Console.WriteLine($"[Overlay] Adding squiggle at {dipRect} (Pixels: {pixelRect}) for '{s.OriginalText}'");
+                var path = SquiggleRenderer.CreateSquiggle(dipRect, s.type);
                 path.Tag = s;
                 path.MouseLeftButtonDown += Squiggle_Click;
                 path.MouseEnter += Squiggle_MouseEnter;
@@ -200,11 +229,68 @@ namespace WordOverlayProofreader.Overlay
             }
         }
 
+        private void CloseTooltip_Click(object sender, RoutedEventArgs e)
+        {
+            SuggestionPopup.IsOpen = false;
+        }
+
         private void Ignore_Click(object sender, RoutedEventArgs e)
         {
             SuggestionPopup.IsOpen = false;
         }
-    }
+
+        // P/Invoke for window visibility
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+        private System.Windows.Threading.DispatcherTimer _visibilityTimer;
+
+        private void SetupVisibilityTimer()
+        {
+            _visibilityTimer = new System.Windows.Threading.DispatcherTimer();
+            _visibilityTimer.Interval = TimeSpan.FromMilliseconds(500);
+            _visibilityTimer.Tick += VisibilityTimer_Tick;
+            _visibilityTimer.Start();
+        }
+
+        private void VisibilityTimer_Tick(object sender, EventArgs e)
+        {
+            try
+            {
+                IntPtr hWnd = GetForegroundWindow();
+                uint processId;
+                GetWindowThreadProcessId(hWnd, out processId);
+
+                var process = System.Diagnostics.Process.GetProcessById((int)processId);
+                if (process.ProcessName.Equals("WINWORD", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (this.Visibility != Visibility.Visible)
+                    {
+                        this.Visibility = Visibility.Visible;
+                        Console.WriteLine("[Overlay] Word is foreground, showing overlay");
+                    }
+                }
+                else
+                {
+                    // Check if the foreground window is OUR overlay or sidebar or popup
+                    // If we are interacting with the overlay, we shouldn't hide it
+                    bool isOurApp = process.Id == System.Diagnostics.Process.GetCurrentProcess().Id;
+                    
+                    if (!isOurApp && this.Visibility == Visibility.Visible)
+                    {
+                        this.Visibility = Visibility.Hidden;
+                        Console.WriteLine($"[Overlay] Word not foreground (Active: {process.ProcessName}), hiding overlay");
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Ignore errors (process might have exited)
+            }
+        }
 
     public class SuggestionVisual
     {

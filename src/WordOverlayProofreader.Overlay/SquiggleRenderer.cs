@@ -13,19 +13,29 @@ namespace WordOverlayProofreader.Overlay
             
             var path = new Path();
             path.Stroke = GetBrushForType(type);
-            path.StrokeThickness = 2.5;
+            path.StrokeThickness = 2.0;
             path.Cursor = System.Windows.Input.Cursors.Hand;
+            path.IsHitTestVisible = true;
             
-            // Simple straight underline (like Grammarly)
-            var geometry = new LineGeometry(
-                new Point(rect.Left, rect.Bottom),
-                new Point(rect.Right, rect.Bottom)
-            );
+            // Create straight underline pattern
+            var pathFigure = new PathFigure();
+            pathFigure.StartPoint = new Point(rect.Left, rect.Bottom);
             
-            path.Data = geometry;
-            path.ToolTip = $"{type} error - Click for suggestions";
+            // Create straight line
+            pathFigure.Segments.Add(new LineSegment(new Point(rect.Right, rect.Bottom), true));
             
-            Console.WriteLine($"[SquiggleRenderer] Created underline from ({rect.Left},{rect.Bottom}) to ({rect.Right},{rect.Bottom})");
+            var pathGeometry = new PathGeometry();
+            pathGeometry.Figures.Add(pathFigure);
+            
+            path.Data = pathGeometry;
+            // path.ToolTip = $"{type} error - Click for suggestions"; // Removed default tooltip
+            
+            // Set explicit position on canvas
+            System.Windows.Controls.Canvas.SetLeft(path, 0);
+            System.Windows.Controls.Canvas.SetTop(path, 0);
+            System.Windows.Controls.Canvas.SetZIndex(path, 1000);
+            
+            Console.WriteLine($"[SquiggleRenderer] Created straight underline from ({rect.Left},{rect.Bottom}) to ({rect.Right},{rect.Bottom})");
             return path;
         }
 

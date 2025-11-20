@@ -41,25 +41,16 @@ namespace WordOverlayProofreader.Addin
                 if (rangeHeight > 0) height = rangeHeight;
                 
                 // Convert to screen coordinates
-                var window = _app.ActiveWindow;
-                int windowLeft = window.Left;
-                int windowTop = window.Top;
+                // GetPoint returns absolute screen pixels, so we don't need to add window position
+                // or chrome offsets.
                 
-                // Add window chrome offset (title bar, etc)
-                int chromeOffsetX = 8; // Windows border
-                int chromeOffsetY = window.Top + 100; // Title bar + ribbon approximate
-                
-                // Calculate screen position
-                int screenLeft = windowLeft + left + chromeOffsetX;
-                int screenTop = windowTop + top + chromeOffsetY;
-                
-                Console.WriteLine($"[Coord] Range '{range.Text?.Trim()}': Window({windowLeft},{windowTop}) + Relative({left},{top}) + Chrome({chromeOffsetX},{chromeOffsetY}) = Screen({screenLeft},{screenTop}) Size({width}x{height})");
+                Console.WriteLine($"[Coord] Range '{range.Text?.Trim()}': GetPoint returned Screen({left},{top}) Size({width}x{height})");
                 
                 // Use reasonable defaults if dimensions are still 0
                 if (width <= 0) width = Math.Max(range.Text?.Length ?? 5 * 8, 50); // Estimate based on text length
                 if (height <= 0) height = 20;
                 
-                return new System.Windows.Rect(screenLeft, screenTop, width, height);
+                return new System.Windows.Rect(left, top, width, height);
             }
             catch (Exception ex)
             {

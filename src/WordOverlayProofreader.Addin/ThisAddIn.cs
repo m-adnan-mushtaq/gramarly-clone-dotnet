@@ -18,7 +18,7 @@ namespace WordOverlayProofreader.Addin
         private System.Threading.Timer _scanTimer;
         private DateTime _lastScanTime = DateTime.MinValue;
         private List<Suggestion> _currentSuggestions = new List<Suggestion>();
-        private bool _autoScanEnabled = false;
+        private bool _autoScanEnabled = true; // Enabled by default as requested
 
         public void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
@@ -30,11 +30,18 @@ namespace WordOverlayProofreader.Addin
             this.Application.WindowSelectionChange += Application_WindowSelectionChange;
             this.Application.DocumentChange += Application_DocumentChange;
             
-            // Start timer for periodic scanning (every 2 seconds after changes)
+            // Start timer for periodic scanning (every 3.5 seconds after changes)
             _scanTimer = new System.Threading.Timer(OnScanTimerTick, null, Timeout.Infinite, Timeout.Infinite);
             
             // Listen for suggestion acceptance from overlay
             Task.Run(() => ListenForAcceptance());
+            
+            // Initial scan
+            if (_autoScanEnabled)
+            {
+                // Delay initial scan slightly to let Word load
+                _scanTimer.Change(2000, Timeout.Infinite);
+            }
         }
 
         private void OnSuggestionsReceived(object sender, List<Suggestion> suggestions)
@@ -153,7 +160,8 @@ namespace WordOverlayProofreader.Addin
             // Trigger re-scan after a delay if auto-scan is enabled
             if (_autoScanEnabled)
             {
-                _scanTimer.Change(2000, Timeout.Infinite);
+                // Debounce 3.5 seconds
+                _scanTimer.Change(3500, Timeout.Infinite);
             }
         }
 
@@ -162,7 +170,8 @@ namespace WordOverlayProofreader.Addin
             // Document content changed, trigger scan if auto-scan is enabled
             if (_autoScanEnabled)
             {
-                _scanTimer.Change(2000, Timeout.Infinite);
+                // Debounce 3.5 seconds
+                _scanTimer.Change(3500, Timeout.Infinite);
             }
         }
         
