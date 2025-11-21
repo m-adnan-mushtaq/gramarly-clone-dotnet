@@ -19,6 +19,7 @@ namespace WordOverlayProofreader.Addin
         private DateTime _lastScanTime = DateTime.MinValue;
         private List<Suggestion> _currentSuggestions = new List<Suggestion>();
         private bool _autoScanEnabled = true; // Enabled by default as requested
+        private HashSet<string> _dismissedSuggestionIds = new HashSet<string>(); // Track dismissed suggestions
 
         public void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
@@ -33,8 +34,9 @@ namespace WordOverlayProofreader.Addin
             // Start timer for periodic scanning (every 3.5 seconds after changes)
             _scanTimer = new System.Threading.Timer(OnScanTimerTick, null, Timeout.Infinite, Timeout.Infinite);
             
-            // Listen for suggestion acceptance from overlay
+            // Listen for suggestion acceptance and dismissal from overlay
             Task.Run(() => ListenForAcceptance());
+            Task.Run(() => ListenForDismissal());
             
             // Initial scan
             if (_autoScanEnabled)
@@ -51,30 +53,41 @@ namespace WordOverlayProofreader.Addin
                 Console.WriteLine($"\n=== SUGGESTIONS RECEIVED ===");
                 Console.WriteLine($"Total: {suggestions?.Count ?? 0} suggestions\n");
                 
-                _currentSuggestions = suggestions;
-                var visuals = new List<SuggestionVisual>();
-                
                 var doc = this.Application.ActiveDocument;
                 if (doc == null)
                 {
                     Console.WriteLine("[AddIn] ERROR: No active document");
                     return;
                 }
+
+                // Get document text for offset correction
+                string docText = doc.Content.Text;
+
+                // *** CRITICAL: Correct suggestion offsets using smart matching ***
+                Console.WriteLine("[AddIn] Correcting suggestion offsets...");
+                var correctedSuggestions = SuggestionOffsetCorrector.CorrectSuggestions(suggestions, docText);
+                
+                // Filter out dismissed suggestions
+                correctedSuggestions = correctedSuggestions.Where(s => !_dismissedSuggestionIds.Contains(s.id)).ToList();
+                
+                _currentSuggestions = correctedSuggestions;
+                var visuals = new List<SuggestionVisual>();
                 
                 int index = 1;
-                foreach (var s in suggestions)
+                foreach (var s in correctedSuggestions)
                 {
                     Console.WriteLine($"\n[{index}] Type: {s.type}");
                     Console.WriteLine($"    Text: '{s.text}'");
                     Console.WriteLine($"    Suggestion: '{s.suggestion}'");
-                    Console.WriteLine($"    Position: {s.from} to {s.to}");
+                    Console.WriteLine($"    Corrected Position: {s.from} to {s.to}");
                     Console.WriteLine($"    ID: {s.id}");
                     
                     // Map range to rect
-                    // Word ranges are 1-based, but server returns 0-based indices
+                    // Word ranges are 1-based, server returns 0-based, corrector returns 0-based
+                    // We need to add 1 to convert to Word's 1-based indexing
                     try
                     {
-                        var range = doc.Range(s.from, s.to);
+                        var range = doc.Range(s.from + 1, s.to + 1);
                         var rect = _coordHelper.GetScreenRect(range);
                         
                         Console.WriteLine($"    Rect: {rect}");
@@ -109,6 +122,7 @@ namespace WordOverlayProofreader.Addin
                 
                 Console.WriteLine($"\n=== SUMMARY ===");
                 Console.WriteLine($"Total suggestions: {suggestions.Count}");
+                Console.WriteLine($"After correction & filtering: {correctedSuggestions.Count}");
                 Console.WriteLine($"Valid visuals: {visuals.Count}");
                 Console.WriteLine($"===============\n");
 
@@ -116,6 +130,7 @@ namespace WordOverlayProofreader.Addin
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[AddIn] Error processing suggestions: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"Error processing suggestions: {ex.Message}");
             }
         }
@@ -347,6 +362,108 @@ namespace WordOverlayProofreader.Addin
                     System.Diagnostics.Debug.WriteLine($"ListenForAcceptance error: {ex.Message}");
                     await Task.Delay(1000);
                 }
+            }
+        }
+
+        private async Task ListenForDismissal()
+        {
+            while (true)
+            {
+                try
+                {
+                    using (var server = new System.IO.Pipes.NamedPipeServerStream("WordOverlayDismissPipe", System.IO.Pipes.PipeDirection.In))
+                    {
+                        Console.WriteLine("[AddIn] Waiting for dismissal pipe connection...");
+                        await server.WaitForConnectionAsync();
+                        Console.WriteLine("[AddIn] Dismissal pipe connected!");
+                        using (var reader = new System.IO.StreamReader(server))
+                        {
+                            var suggestionId = await reader.ReadToEndAsync();
+                            Console.WriteLine($"[AddIn] Received dismiss request for ID: '{suggestionId}'");
+                            if (!string.IsNullOrEmpty(suggestionId))
+                            {
+                                DismissSuggestion(suggestionId.Trim());
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"ListenForDismissal error: {ex.Message}");
+                    await Task.Delay(1000);
+                }
+            }
+        }
+
+        public void DismissSuggestion(string suggestionId)
+        {
+            try
+            {
+                Console.WriteLine($"[AddIn] DismissSuggestion called with ID: {suggestionId}");
+                
+                // Add to dismissed list to prevent reappearing
+                _dismissedSuggestionIds.Add(suggestionId);
+                
+                // Remove from current suggestions
+                var suggestion = _currentSuggestions.FirstOrDefault(s => s.id == suggestionId);
+                if (suggestion != null)
+                {
+                    _currentSuggestions.Remove(suggestion);
+                    Console.WriteLine($"[AddIn] Dismissed suggestion: '{suggestion.text}'. Remaining: {_currentSuggestions.Count}");
+                }
+                else
+                {
+                    Console.WriteLine($"[AddIn] Suggestion ID not found in current list: {suggestionId}");
+                }
+
+                // Send updated list to overlay
+                SendCurrentSuggestionsToOverlay();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AddIn] DismissSuggestion ERROR: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"DismissSuggestion error: {ex.Message}");
+            }
+        }
+
+        private void SendCurrentSuggestionsToOverlay()
+        {
+            try
+            {
+                var doc = this.Application.ActiveDocument;
+                if (doc == null) return;
+
+                var visuals = new List<SuggestionVisual>();
+                
+                foreach (var s in _currentSuggestions)
+                {
+                    try
+                    {
+                        var range = doc.Range(s.from + 1, s.to + 1);
+                        var rect = _coordHelper.GetScreenRect(range);
+                        
+                        if (rect != System.Windows.Rect.Empty && rect.Width > 0 && rect.Height > 0)
+                        {
+                            visuals.Add(new SuggestionVisual
+                            {
+                                type = s.type,
+                                suggestion = s.suggestion,
+                                Rect = rect,
+                                OriginalText = s.text,
+                                id = s.id,
+                                from = s.from,
+                                to = s.to
+                            });
+                        }
+                    }
+                    catch { /* Skip invalid ranges */ }
+                }
+
+                SendToOverlay(visuals);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AddIn] SendCurrentSuggestionsToOverlay ERROR: {ex.Message}");
             }
         }
 

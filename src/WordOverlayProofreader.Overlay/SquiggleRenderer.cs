@@ -7,38 +7,55 @@ namespace WordOverlayProofreader.Overlay
 {
     public static class SquiggleRenderer
     {
-        public static Path CreateSquiggle(Rect rect, string type)
+        public static UIElement CreateSquiggle(Rect rect, string type)
         {
             Console.WriteLine($"[SquiggleRenderer] Creating underline at {rect} for type {type}");
             
+            // Create a container to hold both the visual line and hit area
+            var container = new System.Windows.Controls.Canvas();
+            container.Width = rect.Width;
+            container.Height = 12; // Increased height for better click area
+            
+            // Create the visible underline (bold like Grammarly)
             var path = new Path();
             path.Stroke = GetBrushForType(type);
-            path.StrokeThickness = 2.0;
-            path.StrokeDashArray = null; // Ensure solid line
-            path.Cursor = System.Windows.Input.Cursors.Hand;
-            path.IsHitTestVisible = true;
+            path.StrokeThickness = 3.5; // Bolder line like Grammarly
+            path.StrokeDashArray = null; // Solid line
+            path.IsHitTestVisible = false; // Let the container handle hits
             
-            // Create straight underline pattern
+            // Create straight underline
             var pathFigure = new PathFigure();
-            // Use relative coordinates (0,0 is the start of the path element)
             pathFigure.StartPoint = new Point(0, 0);
-            
-            // Create straight line relative to start
             pathFigure.Segments.Add(new LineSegment(new Point(rect.Width, 0), true));
             
             var pathGeometry = new PathGeometry();
             pathGeometry.Figures.Add(pathFigure);
-            
             path.Data = pathGeometry;
             
-            // Set explicit position on canvas
-            // Position the Path element exactly where the underline should start
-            System.Windows.Controls.Canvas.SetLeft(path, rect.Left);
-            System.Windows.Controls.Canvas.SetTop(path, rect.Bottom);
-            System.Windows.Controls.Canvas.SetZIndex(path, 1000);
+            // Add path to container
+            container.Children.Add(path);
             
-            Console.WriteLine($"[SquiggleRenderer] Created straight underline at ({rect.Left},{rect.Bottom}) width {rect.Width}");
-            return path;
+            // Create an invisible hit area above the line for easier clicking
+            var hitArea = new System.Windows.Shapes.Rectangle();
+            hitArea.Width = rect.Width;
+            hitArea.Height = 12; // Large click area
+            hitArea.Fill = Brushes.Transparent;
+            hitArea.Cursor = System.Windows.Input.Cursors.Hand;
+            hitArea.IsHitTestVisible = true;
+            
+            System.Windows.Controls.Canvas.SetTop(hitArea, -6); // Center the hit area around the line
+            container.Children.Add(hitArea);
+            
+            // Position container on canvas
+            System.Windows.Controls.Canvas.SetLeft(container, rect.Left);
+            System.Windows.Controls.Canvas.SetTop(container, rect.Bottom - 1); // Slight adjustment for visual alignment
+            System.Windows.Controls.Canvas.SetZIndex(container, 1000);
+            
+            container.Cursor = System.Windows.Input.Cursors.Hand;
+            container.IsHitTestVisible = true;
+            
+            Console.WriteLine($"[SquiggleRenderer] Created bold underline with hit area at ({rect.Left},{rect.Bottom}) width {rect.Width}");
+            return container;
         }
 
         private static Brush GetBrushForType(string type)

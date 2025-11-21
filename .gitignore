@@ -16,7 +16,6 @@ bld/
 
 # Visual Studio cache/options
 .vs/
-.vscode/
 *.suo
 *.user
 *.userosscache
@@ -78,6 +77,7 @@ artifacts/
 # NuGet Symbol Packages
 *.snupkg
 *.symbols.nupkg
+temp_auto_push.bat
 
 # Windows image file caches
 Thumbs.db
@@ -90,11 +90,6 @@ Desktop.ini
 $RECYCLE.BIN/
 
 # VS Code
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
 *.code-workspace
 
 # Local History for Visual Studio Code
@@ -162,3 +157,5 @@ TestResults/
 
 # Test batch files output
 *.tmp.bat
+.gitignore
+temp_interactive_push.bat
