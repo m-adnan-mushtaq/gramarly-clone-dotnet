@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -56,21 +57,52 @@ namespace WordOverlayProofreader.Overlay
 
             var suggestion = _currentSuggestions[index];
             
-            ErrorTypeText.Text = $"{char.ToUpper(suggestion.type[0])}{suggestion.type.Substring(1)} Error";
-            ErrorTypeText.Foreground = GetColorForType(suggestion.type);
+            // Update header with type-specific color
+            ErrorTypeText.Text = FormatErrorType(suggestion.type);
+            var typeColor = GetColorForType(suggestion.type);
+            ErrorTypeText.Foreground = typeColor;
+            ErrorTypeDot.Fill = typeColor;
+            
+            // Update content
             OriginalText.Text = suggestion.OriginalText;
             SuggestionText.Text = suggestion.suggestion;
             CountText.Text = $"{index + 1} of {_currentSuggestions.Count}";
+            
+            // Update navigation button states
+            PreviousButton.IsEnabled = index > 0;
+            NextButton.IsEnabled = index < _currentSuggestions.Count - 1;
+            PreviousButton.Opacity = PreviousButton.IsEnabled ? 1.0 : 0.4;
+            NextButton.Opacity = NextButton.IsEnabled ? 1.0 : 0.4;
+        }
+
+        private string FormatErrorType(string type)
+        {
+            if (string.IsNullOrEmpty(type)) return "Error";
+            
+            // Capitalize first letter
+            return char.ToUpper(type[0]) + type.Substring(1).ToLower();
         }
 
         private Brush GetColorForType(string type)
         {
-            switch (type.ToLower())
+            switch (type?.ToLower())
             {
-                case "spelling": return Brushes.Red;
-                case "grammar": return Brushes.Blue;
-                case "style": return Brushes.Purple;
-                default: return Brushes.Orange;
+                case "spelling": 
+                    return new SolidColorBrush(Color.FromRgb(228, 0, 0)); // #E40000 - Red
+                case "grammar": 
+                    return new SolidColorBrush(Color.FromRgb(21, 195, 154)); // #15C39A - Green
+                case "style": 
+                    return new SolidColorBrush(Color.FromRgb(180, 73, 242)); // #B449F2 - Purple
+                case "acronym": 
+                    return new SolidColorBrush(Color.FromRgb(246, 110, 18)); // #F66E12 - Orange
+                case "morphology": 
+                    return new SolidColorBrush(Color.FromRgb(50, 1, 213)); // #3201D5 - Blue
+                case "structure": 
+                    return new SolidColorBrush(Color.FromRgb(243, 178, 0)); // #F3B200 - Gold
+                case "formatting": 
+                    return new SolidColorBrush(Color.FromRgb(7, 158, 82)); // #079E52 - Dark Green
+                default: 
+                    return new SolidColorBrush(Color.FromRgb(1, 151, 213)); // #0197D5 - Blue
             }
         }
 
@@ -115,12 +147,16 @@ namespace WordOverlayProofreader.Overlay
             Console.WriteLine($"[Widget] ========================================");
         }
 
-        private void DismissButton_Click(object sender, RoutedEventArgs e)
+        private async void DismissButton_Click(object sender, RoutedEventArgs e)
         {
             if (_currentIndex < _currentSuggestions.Count)
             {
                 var suggestion = _currentSuggestions[_currentIndex];
                 Console.WriteLine($"[Widget] Dismissing suggestion: {suggestion.OriginalText}");
+                
+                // Send dismiss command to add-in
+                await SendDismissToAddIn(suggestion.id);
+                
                 SuggestionDismissed?.Invoke(this, suggestion.id);
                 
                 _currentSuggestions.RemoveAt(_currentIndex);
@@ -135,6 +171,28 @@ namespace WordOverlayProofreader.Overlay
                 {
                     this.Hide();
                 }
+            }
+        }
+
+        private async Task SendDismissToAddIn(string suggestionId)
+        {
+            try
+            {
+                await Task.Run(async () =>
+                {
+                    using (var client = new System.IO.Pipes.NamedPipeClientStream(".", "WordOverlayDismissPipe", System.IO.Pipes.PipeDirection.Out))
+                    {
+                        await client.ConnectAsync(2000);
+                        using (var writer = new System.IO.StreamWriter(client))
+                        {
+                            await writer.WriteAsync(suggestionId);
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Widget] Error sending dismiss: {ex.Message}");
             }
         }
 

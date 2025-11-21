@@ -139,13 +139,18 @@ namespace WordOverlayProofreader.Overlay
                 );
                 
                 Console.WriteLine($"[Overlay] Adding squiggle at {dipRect} (Pixels: {pixelRect}) for '{s.OriginalText}'");
-                var path = SquiggleRenderer.CreateSquiggle(dipRect, s.type);
-                path.Tag = s;
-                path.MouseLeftButtonDown += Squiggle_Click;
-                path.MouseEnter += Squiggle_MouseEnter;
-                path.MouseLeave += Squiggle_MouseLeave;
-                OverlayCanvas.Children.Add(path);
-                added++;
+                var squiggleElement = SquiggleRenderer.CreateSquiggle(dipRect, s.type);
+                
+                // Cast to FrameworkElement to access Tag property
+                if (squiggleElement is System.Windows.FrameworkElement squiggleContainer)
+                {
+                    squiggleContainer.Tag = s;
+                    squiggleContainer.MouseLeftButtonDown += Squiggle_Click;
+                    squiggleContainer.MouseEnter += Squiggle_MouseEnter;
+                    squiggleContainer.MouseLeave += Squiggle_MouseLeave;
+                    OverlayCanvas.Children.Add(squiggleContainer);
+                    added++;
+                }
             }
             Console.WriteLine($"[Overlay] Added {added} squiggles to canvas");
             
@@ -179,15 +184,57 @@ namespace WordOverlayProofreader.Overlay
 
         private void Squiggle_Click(object sender, MouseButtonEventArgs e)
         {
-            if (sender is Path path && path.Tag is SuggestionVisual s)
+            // Handle both Path and Canvas (container) clicks
+            UIElement element = sender as UIElement;
+            SuggestionVisual s = null;
+            
+            if (sender is Path path && path.Tag is SuggestionVisual)
             {
-                // Show popup with detailed information
-                ErrorTypeText.Text = $"{char.ToUpper(s.type[0])}{s.type.Substring(1)} Error";
-                // OriginalText.Text = s.OriginalText; // Removed in new UI
+                s = path.Tag as SuggestionVisual;
+            }
+            else if (sender is System.Windows.Controls.Canvas canvas && canvas.Tag is SuggestionVisual)
+            {
+                s = canvas.Tag as SuggestionVisual;
+            }
+            
+            if (s != null && element != null)
+            {
+                // Update header with type-specific styling
+                ErrorTypeText.Text = FormatErrorType(s.type);
+                var typeColor = GetColorForType(s.type);
+                ErrorTypeText.Foreground = typeColor;
+                TooltipTypeDot.Fill = typeColor;
                 
-                SuggestionPopup.PlacementTarget = path;
+                SuggestionPopup.PlacementTarget = element;
                 SuggestionPopup.IsOpen = true;
                 SuggestionsList.ItemsSource = new[] { s };
+            }
+        }
+
+        private string FormatErrorType(string type)
+        {
+            if (string.IsNullOrEmpty(type)) return "Error";
+            return char.ToUpper(type[0]) + type.Substring(1).ToLower();
+        }
+
+        private Brush GetColorForType(string type)
+        {
+            switch (type?.ToLower())
+            {
+                case "spelling": 
+                    return new SolidColorBrush(Color.FromRgb(228, 0, 0));
+                case "grammar": 
+                    return new SolidColorBrush(Color.FromRgb(21, 195, 154));
+                case "style": 
+                    return new SolidColorBrush(Color.FromRgb(180, 73, 242));
+                case "acronym": 
+                    return new SolidColorBrush(Color.FromRgb(246, 110, 18));
+                case "morphology": 
+                    return new SolidColorBrush(Color.FromRgb(50, 1, 213));
+                case "structure": 
+                    return new SolidColorBrush(Color.FromRgb(243, 178, 0));
+                default: 
+                    return new SolidColorBrush(Color.FromRgb(1, 151, 213));
             }
         }
 
@@ -234,8 +281,49 @@ namespace WordOverlayProofreader.Overlay
             SuggestionPopup.IsOpen = false;
         }
 
-        private void Ignore_Click(object sender, RoutedEventArgs e)
+        private async void Ignore_Click(object sender, RoutedEventArgs e)
         {
+            // Get the suggestion from ItemsSource
+            if (SuggestionsList.ItemsSource is SuggestionVisual[] suggestions && suggestions.Length > 0)
+            {
+                var s = suggestions[0];
+                
+                // Send dismiss to add-in
+                try
+                {
+                    await Task.Run(async () =>
+                    {
+                        using (var client = new System.IO.Pipes.NamedPipeClientStream(".", "WordOverlayDismissPipe", System.IO.Pipes.PipeDirection.Out))
+                        {
+                            await client.ConnectAsync(2000);
+                            using (var writer = new System.IO.StreamWriter(client))
+                            {
+                                await writer.WriteAsync(s.id);
+                            }
+                        }
+                    });
+                    
+                    // Remove the squiggle from canvas
+                    var pathToRemove = OverlayCanvas.Children.OfType<UIElement>()
+                        .FirstOrDefault(p => p is System.Windows.Controls.Canvas canvas && canvas.Tag is SuggestionVisual sv && sv.id == s.id);
+                    
+                    if (pathToRemove == null)
+                    {
+                        pathToRemove = OverlayCanvas.Children.OfType<System.Windows.Shapes.Path>()
+                            .FirstOrDefault(p => p.Tag is SuggestionVisual sv && sv.id == s.id);
+                    }
+                    
+                    if (pathToRemove != null)
+                    {
+                        OverlayCanvas.Children.Remove(pathToRemove);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error dismissing suggestion: {ex.Message}");
+                }
+            }
+            
             SuggestionPopup.IsOpen = false;
         }
 
