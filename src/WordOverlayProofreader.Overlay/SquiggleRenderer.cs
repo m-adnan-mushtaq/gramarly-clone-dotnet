@@ -14,28 +14,30 @@ namespace WordOverlayProofreader.Overlay
             var path = new Path();
             path.Stroke = GetBrushForType(type);
             path.StrokeThickness = 2.0;
+            path.StrokeDashArray = null; // Ensure solid line
             path.Cursor = System.Windows.Input.Cursors.Hand;
             path.IsHitTestVisible = true;
             
             // Create straight underline pattern
             var pathFigure = new PathFigure();
-            pathFigure.StartPoint = new Point(rect.Left, rect.Bottom);
+            // Use relative coordinates (0,0 is the start of the path element)
+            pathFigure.StartPoint = new Point(0, 0);
             
-            // Create straight line
-            pathFigure.Segments.Add(new LineSegment(new Point(rect.Right, rect.Bottom), true));
+            // Create straight line relative to start
+            pathFigure.Segments.Add(new LineSegment(new Point(rect.Width, 0), true));
             
             var pathGeometry = new PathGeometry();
             pathGeometry.Figures.Add(pathFigure);
             
             path.Data = pathGeometry;
-            // path.ToolTip = $"{type} error - Click for suggestions"; // Removed default tooltip
             
             // Set explicit position on canvas
-            System.Windows.Controls.Canvas.SetLeft(path, 0);
-            System.Windows.Controls.Canvas.SetTop(path, 0);
+            // Position the Path element exactly where the underline should start
+            System.Windows.Controls.Canvas.SetLeft(path, rect.Left);
+            System.Windows.Controls.Canvas.SetTop(path, rect.Bottom);
             System.Windows.Controls.Canvas.SetZIndex(path, 1000);
             
-            Console.WriteLine($"[SquiggleRenderer] Created straight underline from ({rect.Left},{rect.Bottom}) to ({rect.Right},{rect.Bottom})");
+            Console.WriteLine($"[SquiggleRenderer] Created straight underline at ({rect.Left},{rect.Bottom}) width {rect.Width}");
             return path;
         }
 

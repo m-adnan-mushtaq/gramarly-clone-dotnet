@@ -4,7 +4,7 @@
     <tabs>
       <tab idMso="TabAddIns">
         <group id="group1" label="Grammar Checker">
-          <button id="btnScan" label="Scan Document" onAction="btnScan_Click" size="large" imageMso="Spelling" />
+          <button id="btnScan" label="Scan Document" onAction="btnScan_Click" size="large" imageMso="Spelling" visible="false" />
           <toggleButton id="btnAutoScan" label="Auto-Scan" onAction="btnAutoScan_Click" size="normal" imageMso="AutoCorrectOptionsSmartTag" />
         </group>
       </tab>

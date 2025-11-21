@@ -183,7 +183,7 @@ namespace WordOverlayProofreader.Overlay
             {
                 // Show popup with detailed information
                 ErrorTypeText.Text = $"{char.ToUpper(s.type[0])}{s.type.Substring(1)} Error";
-                OriginalText.Text = s.OriginalText;
+                // OriginalText.Text = s.OriginalText; // Removed in new UI
                 
                 SuggestionPopup.PlacementTarget = path;
                 SuggestionPopup.IsOpen = true;
@@ -291,6 +291,8 @@ namespace WordOverlayProofreader.Overlay
                 // Ignore errors (process might have exited)
             }
         }
+
+    }
 
     public class SuggestionVisual
     {
